@@ -1,8 +1,8 @@
-SRC_NAME=pcre-8.41
-SRC_URL=https://ftp.pcre.org/pub/pcre/pcre-8.41.zip
+SRC_NAME=pcre-8.43
+SRC_URL=https://ftp.pcre.org/pub/pcre/pcre-8.43.zip
 
 all: download_test extract_test config_test
-	$(MAKE) -C $(SRC_NAME)
+	$(MAKE) -j$(HOST_NCPU) -C $(SRC_NAME)
 
 download_test:
 	( if [ ! -f $(SRC_NAME).zip ]; then \

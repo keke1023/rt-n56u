@@ -2,6 +2,8 @@ SRC_NAME = njit8021xclient-1.3.1-pdv
 SRC_URL = https://github.com/hanwckf/njit8021xclient/archive/v1.3.1-pdv.tar.gz
 THISDIR = $(shell pwd)
 
+CFLAGS += -Wno-unused-value
+
 all: download_test extract_test config_test
 	$(MAKE) -C $(SRC_NAME)/src
 
@@ -25,16 +27,16 @@ config_test:
 configure:
 	( cd $(SRC_NAME)/src ; \
 	autoreconf -fi ; \
+	ac_cv_path_PCAP_CONFIG=$(STAGEDIR)/bin/pcap-config \
 	./configure \
 		--prefix=/usr \
 		PKG_CONFIG_LIBDIR=$(STAGEDIR)/lib/pkgconfig \
-		ac_cv_path_PCAP_CONFIG=$(STAGEDIR)/bin/pcap-config \
 		--host=$(HOST_TARGET) \
 		--build=$(HOST_BUILD) ; \
 	)
 
 clean:
-	if [ -f $(SRC_NAME)/Makefile ] ; then \
+	if [ -f $(SRC_NAME)/src/Makefile ] ; then \
 		$(MAKE) -C $(SRC_NAME)/src distclean ; \
 	fi ; \
 	rm -f config_done

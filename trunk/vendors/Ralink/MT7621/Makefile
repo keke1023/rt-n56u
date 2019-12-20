@@ -6,6 +6,10 @@ ROMFS_DIR	= $(ROOTDIR)/romfs
 MKIMAGE_DIR	:= $(ROOTDIR)/tools/mkimage
 CUR_DIR		= $(shell pwd)
 COMP		= lzma
+ifeq ($(CONFIG_WITHOUT_KERNEL),y)
+UBOOT_HEADER	= $(MERGE_DIR)/$(CONFIG_FIRMWARE_PRODUCT_ID).trx
+endif
+
 ifeq ($(CONFIG_MTD_NAND_MTK),y)
 PART_ALIGN	= 131072
 else
@@ -37,6 +41,9 @@ romfs:
 	for i in $(ROMFS_DIRS); do \
 		[ -d $(ROMFSDIR)/$$i ] || mkdir -p $(ROMFSDIR)/$$i; \
 	done
+	if [ -f $(BOARD_DIR)/l1profile.dat ]; then \
+		cp -f $(BOARD_DIR)/l1profile.dat $(ROMFSDIR)/etc_ro/Wireless; \
+	fi
 	for i in `ls $(BOARD_DIR)/SingleSKU*.dat` ; do \
 		[ -f $$i ] && cp -f $$i $(ROMFSDIR)/etc_ro/Wireless; \
 	done
@@ -62,21 +69,32 @@ endif
 ifdef CONFIG_MT76X3_AP
 	$(ROMFSINST) /etc_ro/Wireless/MT7603E_EEPROM.bin
 endif
-
+ifeq ($(CONFIG_RT_FIRST_CARD),7615)
+	$(ROMFSINST) /etc_ro/Wireless/mt7615e.eeprom.bin
+else
+ifeq ($(CONFIG_RT_SECOND_CARD),7615)
+	$(ROMFSINST) /etc_ro/Wireless/mt7615e.eeprom.bin
+endif
+endif
 romfs.post::
 	[ -d $(IMAGEDIR) ] || mkdir -p $(IMAGEDIR)
-	sudo /sbin/ldconfig -r $(ROMFSDIR) -C /etc_ro/ld.so.cache
+	#/sbin/ldconfig -r $(ROMFSDIR) -C /etc_ro/ld.so.cache
 	rm -f $(RAMDISK)
 	rm -f $(KERNELZ).lzma
 ifeq ($(CONFIG_RT2880_ROOTFS_IN_FLASH),y)
-	$(ROOTDIR)/tools/bin/mksquashfs_xz-4.0 $(ROMFSDIR) $(RAMDISK) -all-root -no-exports -noappend -nopad -noI -no-xattrs
+	$(ROOTDIR)/tools/mksquashfs_xz/mksquashfs $(ROMFSDIR) $(RAMDISK) -all-root -no-exports -noappend -nopad -noI -no-xattrs
 endif
 
 image:
 	##############CREATE IMAGE#################
+ifeq ($(CONFIG_WITHOUT_KERNEL),y)
+	cd $(IMAGEDIR) ; rm -f $(KERNELZ).*; \
+	cp -f $(MERGE_DIR)/$(CONFIG_FIRMWARE_PRODUCT_ID)/kernel.bin $(KERNELZ).$(COMP)
+else
 	$(CROSS_COMPILE)objcopy -O binary -R .note -R .comment -S $(ROOTDIR)/$(LINUXDIR)/vmlinux $(KERNELZ)
 	cd $(IMAGEDIR) ; rm -f $(KERNELZ).*; \
-	$(ROOTDIR)/tools/bin/lzma_alone e -a1 -d25 $(KERNELZ) $(KERNELZ).$(COMP)
+	$(ROOTDIR)/tools/lzma/lzma e -a1 -d25 $(KERNELZ) $(KERNELZ).$(COMP)
+endif
 ifeq ($(CONFIG_BLK_DEV_INITRD),)
 ifeq ($(CONFIG_ROOTFS_IN_FLASH_NO_PADDING),)
 	@#============================================================
@@ -169,6 +187,15 @@ ifeq ($(CONFIG_ROOTFS_IN_FLASH_NO_PADDING),)
 else
 	# For No padded, need write kernel size in image header 
 	# to correct mount partition in mtd drivers address
+ifeq ($(CONFIG_WITHOUT_KERNEL),y)
+	@cd $(IMAGEDIR) ; \
+	ENTRY=`$(MKIMAGE_DIR)/mkimage -l $(UBOOT_HEADER) 2>/dev/null |grep "Entry" |awk '{print $$3}'` ; \
+	ISIZE=`wc -c $(KERNELZ).$(COMP) | awk '{print $$1}'` ; \
+	RSIZE=`wc -c $(RAMDISK) | awk '{print $$1}'` ; \
+	KRN_SIZE=`expr $$ISIZE - $$RSIZE + 64` ; \
+	$(MKIMAGE_DIR)/mkimage -A mips -O linux -T kernel -C $(COMP) -a 80001000 -e $$ENTRY -k $$KRN_SIZE \
+	-n $(CONFIG_FIRMWARE_PRODUCT_ID) -V $(FIRMWARE_KERNEL_VER) $(FIRMWARE_ROOTFS_VER) -d $(KERNELZ).$(COMP) $(IMAGE)
+else
 	@cd $(IMAGEDIR) ; \
 	ENTRY=`LANG=C LC_ALL=C readelf -h $(ROOTDIR)/$(LINUXDIR)/vmlinux | grep "Entry" | awk '{print $$4}'` ; \
 	ISIZE=`wc -c $(KERNELZ).$(COMP) | awk '{print $$1}'` ; \
@@ -176,4 +203,5 @@ else
 	KRN_SIZE=`expr $$ISIZE - $$RSIZE + 64` ; \
 	$(MKIMAGE_DIR)/mkimage -A mips -O linux -T kernel -C $(COMP) -a 80001000 -e $$ENTRY -k $$KRN_SIZE \
 	-n $(CONFIG_FIRMWARE_PRODUCT_ID) -V $(FIRMWARE_KERNEL_VER) $(FIRMWARE_ROOTFS_VER) -d $(KERNELZ).$(COMP) $(IMAGE)
+endif
 endif

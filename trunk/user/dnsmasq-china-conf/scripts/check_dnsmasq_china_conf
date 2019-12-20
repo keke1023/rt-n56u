@@ -1,7 +1,0 @@
-#!/bin/sh
-storage_dir="/etc/storage/dnsmasq-china-conf"
-origin_dir="/etc_ro/dnsmasq-china-conf"
-filename="accelerated-domains.china.conf"
-
-[ ! -d $storage_dir ] && mkdir -p $storage_dir
-[ ! -f $storage_dir/$filename ] && [ -f $origin_dir/$filename ] && cp -f $origin_dir/$filename $storage_dir/$filename && touch /tmp/.modify_etc_storage

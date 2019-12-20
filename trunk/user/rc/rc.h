@@ -518,6 +518,12 @@ void stop_scutclient(void);
 void start_scutclient(void);
 void restart_scutclient(void);
 #endif
+#if defined(APP_MENTOHUST)
+int is_mentohust_run(void);
+void stop_mentohust(void);
+void start_mentohust(void);
+void restart_mentohust(void);
+#endif
 #if defined(APP_TTYD)
 void stop_ttyd(void);
 void start_ttyd(void);
@@ -530,6 +536,8 @@ void restart_ss(void);
 void stop_ss_tunnel(void);
 void start_ss_tunnel(void);
 void restart_ss_tunnel(void);
+void update_chnroute(void);
+void update_gfwlist(void);
 #endif
 #if defined(APP_VLMCSD)
 void stop_vlmcsd(void);
@@ -538,11 +546,6 @@ void restart_vlmcsd(void);
 #endif
 #if defined(APP_NAPT66)
 void start_napt66(void);
-#endif
-#if defined(APP_CHINADNS)
-void stop_chinadns(void);
-void start_chinadns(void);
-void restart_chinadns(void);
 #endif
 #if defined(APP_DNSFORWARDER)
 void stop_dnsforwarder(void);

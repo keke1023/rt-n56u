@@ -1,34 +1,35 @@
-group: deprecated-2017Q4
-
-dist: trusty
-
-sudo: required
+dist: bionic
 
 language: c
 
 compiler:
     - gcc
 
-install:
-    - sudo apt-get update -qq
-    - sudo apt-get install -qq zip autoconf automake bison build-essential flex gawk gettext gperf libtool pkg-config zlib1g-dev libgmp3-dev libmpc-dev libmpfr-dev texinfo python-docutils libncurses5-dev autopoint curl
+addons:
+    apt:
+      packages: [ fakeroot, p7zip-full, libtool-bin, gperf, texinfo, python-docutils, autopoint ]
 
 before_script:
-    - sudo mkdir -p /opt/rt-n56u/ && sudo mkdir -p /opt/images/
-    - sudo rm -rf toolchain-mipsel/
-    - sudo mv -f * .[^.]* /opt/rt-n56u
-    - cd /opt/rt-n56u && sudo git clone --depth=1 https://github.com/hanwckf/padavan-toolchain.git toolchain-mipsel && sudo chmod u+x ./toolchain-mipsel/toolchain-3.4.x/bin/*
-    - ls -Alh /opt/rt-n56u
-    - cd /opt/rt-n56u/trunk/
+    - ./trunk/tools/shellcheck.sh
+    - mkdir -p /opt/rt-n56u/toolchain-mipsel/toolchain-3.4.x && mkdir -p /opt/images/
+    - cp -f ./trunk/tools/travis/* /opt && ./trunk/tools/travis_ci_build_trig.sh
+    - rm -rf toolchain-mipsel/ && mv -f * .[^.]* /opt/rt-n56u
+    - wget $toolchain_url && tar -xf mipsel-linux-uclibc.tar.xz -C /opt/rt-n56u/toolchain-mipsel/toolchain-3.4.x
+    - ls -Alh /opt/rt-n56u && cd /opt/rt-n56u/trunk/
 
 script:
-    - sudo bash ./build_firmware_nohup MI-MINI && sudo cp -f images/*.trx /opt/images
-    - sudo bash ./clear_tree_simple >/dev/null 2>&1 && sudo bash ./build_firmware_nohup PSG1218 && sudo cp -f images/*.trx /opt/images
-    - sudo bash ./clear_tree_simple >/dev/null 2>&1 && sudo bash ./build_firmware_nohup OYE-001 && sudo cp -f images/*.trx /opt/images
-    - sudo bash ./clear_tree_simple >/dev/null 2>&1 && sudo bash ./build_firmware_nohup 5K-W20 && sudo cp -f images/*.trx /opt/images
-    - sudo bash ./clear_tree_simple >/dev/null 2>&1 && sudo bash ./build_firmware_nohup WR1200JS && sudo cp -f images/*.trx /opt/images
+    - for m in $targets; do fakeroot ./build_firmware_nohup $m && cp -f images/*.trx /opt/images/$m.trx; ./clear_tree_simple >/dev/null 2>&1; done
 
 after_script:
-    - GIT_VERSION=`git rev-parse --short=7 HEAD 2>/dev/null` && [ -n "$GIT_VERSION" ] && image_name=images_$GIT_VERSION || image_name=images
-    - cd /opt/images && sudo bash -c "md5sum * > md5sum.txt" && sudo zip -r ${image_name}.zip ./*
-    - curl --upload-file ./${image_name}.zip https://transfer.sh/${image_name}.zip
+    - GIT_VERSION=`git rev-parse --short=7 HEAD 2>/dev/null` && [ -n "$GIT_VERSION" ] && image_name=images_mt7620_$GIT_VERSION || image_name=images_mt7620
+    - cd /opt/images; du -k *; md5sum *.trx |tee md5sum.txt; 7z a -mx=9 ${image_name}.7z ./*
+    - "curl -m 180 -H 'Max-Days: 3' --upload-file ./${image_name}.7z https://transfer.sh/${image_name}.7z ; echo"
+
+env:
+    global:
+      - targets="PSG1208 PSG1218 NEWIFI-MINI MI-MINI MI-3 OYE-001"
+      - toolchain_url="https://github.com/hanwckf/padavan-toolchain/releases/download/v1.0/mipsel-linux-uclibc.tar.xz"
+      - secure: URLT7NCfQa0gh0Uty8uZqvvD9D8RolF0eKwXLIsCy+3w4pd4Qiwe6N/zRew41UZ+cC7PXjZeysc0XjuY58DncW9zEWgFAcfcrikkBaZEZhk6iAu4Y8AgYS5qMynLR6h8SE/QhThJBjIUQGhBNdP9Cze6smqlK0Q1gHbFndfndxcAuf7HaaJPvpV4enV5yyouyC4JBXLkth4yAyidZjHclZeSLzSQQxvU68X2fFLazNRcmqZb2GW8DUx/lCVllScgIFaPXkWlzZEgeESE3kDLoum1zTkf/btJswX+d/mxMOrJiYx/ur+NXhBGyE7yaPCoc+4cpg+R7mPKIGVyJ6WPgQm7lrcn2QWTtYmEizZ0qiCK7yU1hPbOe6VU9QfrbUNVoalYI4Hx0stmiZV1Vpx73L5oy/ZQEAayS7rhSBntN6KozgRPrA/ZqrE6mI1Ky6lQAYfsekqivZq7nNfyV7VSX4A3iZ73NY4LEXrbuordSWIpW9RuIt0i6zfBUD4nDN6PlYnrL7lp4Nq/14TI/x2eq95TQ/+zYk0pT4svp2OKUyOp89k2Y2R25BHCyOVynkwNSk6zN9IgmTyD5TQTV2ceIj61mGbnKkn2+8wWfaSq2IdKmttBfxkVpWlSA7qfCign4WuigClt5Ng7935zIT9UqzIftoESPWaseNy1prbItjk=
+
+git:
+    depth: 3

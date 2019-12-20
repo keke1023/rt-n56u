@@ -2,12 +2,13 @@ SRC_NAME = napt66-v1.1
 THISDIR = $(shell pwd)
 
 all:
+ifeq ($(CONFIG_WITHOUT_KERNEL),y)
+	@echo "napt66 would not build!"
+else
 	$(MAKE) -C $(SRC_NAME)
+endif
 
 romfs:
-	chmod -R +x scripts/
-	${ROMFSINST} $(THISDIR)/scripts/ /bin/
-	${ROMFSINST} -S -d $(THISDIR)/$(SRC_NAME)/napt66.ko /etc_ro/napt66.ko
 
 clean:
 	$(MAKE) -C $(SRC_NAME) clean

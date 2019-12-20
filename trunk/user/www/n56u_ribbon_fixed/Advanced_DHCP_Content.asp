@@ -35,7 +35,7 @@ $j(document).ready(function() {
 <script>
 
 var ipmonitor = [<% get_static_client(); %>];
-var wireless = [<% wl_auth_list(); %>];
+var wireless = {<% wl_auth_list(); %>};
 var m_dhcp = [<% get_nvram_list("LANHostConfig", "ManualDHCPList"); %>];
 
 var mdhcp_ifield = 3;
@@ -479,6 +479,12 @@ function changeBgColor(obj, num){
                                             <th><a class="help_tooltip" href="javascript:void(0);" onmouseover="openTooltip(this,5,9);"><#LANHostConfig_x_LDNSServer1_itemname#> 3:</a></th>
                                             <td>
                                                 <input type="text" maxlength="15" class="input" size="15" name="dhcp_dns3_x" value="<% nvram_get_x("", "dhcp_dns3_x"); %>" onKeyPress="return is_ipaddr(this,event);" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><a class="help_tooltip" href="javascript:void(0);" onmouseover="openTooltip(this,5,12);"><#LANHostConfig_x_LDNSServer6_itemname#> :</th>
+                                            <td>
+                                                <input type="text" maxlength="40" class="input" size="15" name="dhcp_dnsv6_x" value="<% nvram_get_x("", "dhcp_dnsv6_x"); %>" onKeyPress="return is_string(this,event);" />
                                             </td>
                                         </tr>
                                         <tr>

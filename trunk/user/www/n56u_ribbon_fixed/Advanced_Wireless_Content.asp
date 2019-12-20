@@ -50,6 +50,10 @@ function initial(){
 		o1.remove(1);
 	}
 
+	if (!support_5g_160mhz()){
+		document.form.wl_HT_BW.remove(3);
+	}
+
 	document.form.wl_radio_date_x_Sun.checked = getDateCheck(document.form.wl_radio_date_x.value, 0);
 	document.form.wl_radio_date_x_Mon.checked = getDateCheck(document.form.wl_radio_date_x.value, 1);
 	document.form.wl_radio_date_x_Tue.checked = getDateCheck(document.form.wl_radio_date_x.value, 2);
@@ -409,6 +413,7 @@ function validate_wlphrase(s, v, obj){
                                                     <option value="0" <% nvram_match_x("","wl_HT_BW", "0","selected"); %>>20 MHz</option>
                                                     <option value="1" <% nvram_match_x("","wl_HT_BW", "1","selected"); %>>20/40 MHz</option>
                                                     <option value="2" <% nvram_match_x("","wl_HT_BW", "2","selected"); %>>20/40/80 MHz</option>
+                                                    <option value="3" <% nvram_match_x("","wl_HT_BW", "3","selected"); %>>20/40/80/160 MHz</option>
                                                 </select>
                                             </td>
                                         </tr>
@@ -547,7 +552,7 @@ function validate_wlphrase(s, v, obj){
                                                     <option value="FR" <% nvram_match_x("", "wl_country_code", "FR","selected"); %>>France (channels 36,40,44,48)</option>
                                                     <option value="GB" <% nvram_match_x("", "wl_country_code", "GB","selected"); %>>Europe (channels 36,40,44,48)</option>
                                                     <option value="TW" <% nvram_match_x("", "wl_country_code", "TW","selected"); %>>Taiwan (channels 149,153,157,161)</option>
-                                                    <option value="CN" <% nvram_match_x("", "wl_country_code", "CN","selected"); %>>China (channels 149,153,157,161,165)</option>
+                                                    <option value="CN" <% nvram_match_x("", "wl_country_code", "CN","selected"); %>>China (channels 36,40,44,48,149,153,157,161,165)</option>
                                                     <option value="KR" <% nvram_match_x("", "wl_country_code", "KR","selected"); %>>Korea (channels 149,153,157,161)</option>
                                                     <option value="JP" <% nvram_match_x("", "wl_country_code", "JP","selected"); %>>Japan (channels 36,40,44,48)</option>
                                                     <option value="DB" <% nvram_match_x("", "wl_country_code", "DB","selected"); %>>Debug (all channels)</option>

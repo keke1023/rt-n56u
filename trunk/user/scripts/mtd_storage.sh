@@ -77,6 +77,7 @@ func_save()
 {
 	local fsz
 
+	logger -t "Storage save" "Save storage files to MTD partition \"$mtd_part_dev\""
 	echo "Save storage files to MTD partition \"$mtd_part_dev\""
 	rm -f $tbz
 	md5sum -c -s $hsh 2>/dev/null
@@ -92,6 +93,7 @@ func_save()
 		mtd_write write $tbz $mtd_part_name
 		if [ $? -eq 0 ] ; then
 			echo "Done."
+			logger -t "Storage save" "Done."
 		else
 			result=1
 			echo "Error! MTD write FAILED"
@@ -194,7 +196,7 @@ func_fill()
 	dir_crond="$dir_storage/cron/crontabs"
 	dir_wlan="$dir_storage/wlan"
 	dir_chnroute="$dir_storage/chinadns"
-	dir_dnsmasq_china_conf="$dir_storage/dnsmasq-china-conf"
+	dir_gfwlist="$dir_storage/gfwlist"
 
 	script_start="$dir_storage/start_script.sh"
 	script_started="$dir_storage/started_script.sh"
@@ -217,7 +219,7 @@ func_fill()
 	user_sswan_secrets="$dir_sswan/ipsec.secrets"
 	
 	chnroute_file="/etc_ro/chnroute.bz2"
-	dnsmasq_china_conf_file="/etc_ro/dnsmasq-china-conf/dnsmasq-china-conf.bz2"
+	gfwlist_conf_file="/etc_ro/gfwlist.bz2"
 
 	# create crond dir
 	[ ! -d "$dir_crond" ] && mkdir -p -m 730 "$dir_crond"
@@ -232,10 +234,10 @@ func_fill()
 		fi
 	fi
 
-	# create dnsmasq-china-conf
-	if [ ! -d "$dir_dnsmasq_china_conf" ] ; then
-		if [ -f "$dnsmasq_china_conf_file" ]; then	
-			mkdir -p "$dir_dnsmasq_china_conf" && tar jxf "$dnsmasq_china_conf_file" -C "$dir_dnsmasq_china_conf"
+	# create gfwlist
+	if [ ! -d "$dir_gfwlist" ] ; then
+		if [ -f "$gfwlist_conf_file" ]; then	
+			mkdir -p "$dir_gfwlist" && tar jxf "$gfwlist_conf_file" -C "$dir_gfwlist"
 		fi
 	fi
 
@@ -248,7 +250,7 @@ func_fill()
 	if [ ! -f "$script_started" ] ; then
 		cat > "$script_started" <<EOF
 #!/bin/sh
-export PATH='/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+
 ### Custom user script
 ### Called after router started and network is ready
 
@@ -260,6 +262,9 @@ export PATH='/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 #modprobe ip_set_list_set
 #modprobe xt_set
 
+#drop caches
+sync && echo 3 > /proc/sys/vm/drop_caches
+
 EOF
 		chmod 755 "$script_started"
 	fi
@@ -268,7 +273,7 @@ EOF
 	if [ ! -f "$script_shutd" ] ; then
 		cat > "$script_shutd" <<EOF
 #!/bin/sh
-export PATH='/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+
 ### Custom user script
 ### Called before router shutdown
 ### \$1 - action (0: reboot, 1: halt, 2: power-off)
@@ -282,13 +287,9 @@ EOF
 	if [ ! -f "$script_postf" ] ; then
 		cat > "$script_postf" <<EOF
 #!/bin/sh
-export PATH='/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+
 ### Custom user script
 ### Called after internal iptables reconfig (firewall update)
-
-if [ -f "/tmp/shadowsocks_iptables.save" ]; then
-	sh /tmp/shadowsocks_iptables.save
-fi
 
 EOF
 		chmod 755 "$script_postf"
@@ -298,7 +299,7 @@ EOF
 	if [ ! -f "$script_postw" ] ; then
 		cat > "$script_postw" <<EOF
 #!/bin/sh
-export PATH='/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+
 ### Custom user script
 ### Called after internal WAN up/down action
 ### \$1 - WAN action (up/down)
@@ -313,17 +314,13 @@ EOF
 	if [ ! -f "$script_inets" ] ; then
 		cat > "$script_inets" <<EOF
 #!/bin/sh
-export PATH='/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+
 ### Custom user script
 ### Called on Internet status changed
 ### \$1 - Internet status (0/1)
 ### \$2 - elapsed time (s) from previous state
 
 logger -t "di" "Internet state: \$1, elapsed time: \$2s."
-
-if [ -f "/bin/scutclient.sh" ]; then
-	scutclient.sh restart
-fi
 
 EOF
 		chmod 755 "$script_inets"
@@ -432,7 +429,7 @@ EOF
 	if [ ! -f "$script_ezbtn" ] ; then
 		cat > "$script_ezbtn" <<EOF
 #!/bin/sh
-export PATH='/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+
 ### Custom user script
 ### Called on WPS or FN button pressed
 ### \$1 - button param
@@ -476,6 +473,9 @@ dhcp-option=252,"\n"
 ### Set the boot filename for netboot/PXE
 #dhcp-boot=pxelinux.0
 
+### Log for all queries
+#log-queries
+
 EOF
 	if [ -f /usr/bin/vlmcsd ]; then
 		cat >> "$user_dnsmasq_conf" <<EOF
@@ -484,20 +484,12 @@ srv-host=_vlmcs._tcp,my.router,1688,0,100
 
 EOF
 	fi
-	if [ -f /usr/bin/chinadns ]; then
-		cat >> "$user_dnsmasq_conf" <<EOF
-### ChinaDNS related
-#no-resolv
-#server=127.0.0.1#5302
 
-EOF
-	fi
-	if [ -d /etc_ro/dnsmasq-china-conf ]; then
+	if [ -d $dir_gfwlist ]; then
 		cat >> "$user_dnsmasq_conf" <<EOF
-### dnsmasq-china-list related
-#no-resolv
-#conf-dir=/etc/storage/dnsmasq-china-conf
-#server=127.0.0.1#5301
+### gfwlist related (resolve by port 5353)
+#min-cache-ttl=3600
+#conf-dir=/etc/storage/gfwlist
 
 EOF
 	fi

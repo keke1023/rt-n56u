@@ -1,39 +1,49 @@
 #!/bin/sh
 
-LOGTIME=$(date "+%H:%M:%S")
-
-net_domain="www.qq.com"
+pidfile="/var/ss-watchcat.pid"
+China_ping_domain="www.qq.com"
+Foreign_wget_domain="http://www.google.com/"
 log_file="/tmp/ss-watchcat.log"
+max_log_bytes=100000
+
+go_exit(){
+	rm -f $pidfile
+	exit
+}
 
 loger(){
-	echo -n "$LOGTIME " >> $log_file
-	logger -st "ss-watchcat" "$1" 2>>$log_file
+	[ -f $log_file ] && [ $(stat -c %s $log_file) -gt $max_log_bytes ] && rm -f $log_file
+	time=$(date "+%H:%M:%S")
+	echo "$time ss-watchcat $1" >> $log_file
 }
 
 detect_shadowsocks(){
-	wget --spider --quiet --timeout=3 http://www.google.com/ > /dev/null 2>&1
-	if [ "$?" = "0" ]; then
-		loger "No Problem."
-		exit 0
-	else
-		/usr/bin/shadowsocks.sh restart >/dev/null 2>&1 && loger "Problem decteted, restart shadowsocks."
-		[ -f /usr/bin/dns-forwarder.sh ] && /usr/bin/dns-forwarder.sh restart >/dev/null 2>&1 && loger "Problem decteted, restart dns-forwarder."
-		[ -f /usr/bin/chinadns.sh ] && /usr/bin/chinadns.sh restart >/dev/null 2>&1 && loger "Problem decteted, restart chinadns."
-	fi
+	wget --spider --quiet --timeout=3 $Foreign_wget_domain > /dev/null 2>&1
+	return $?
 }
 
+restart_apps(){
+	/usr/bin/shadowsocks.sh restart >/dev/null 2>&1 && loger "Problem decteted, restart shadowsocks."
+	[ -f /usr/bin/dns-forwarder.sh ] && [ "$(nvram get dns_forwarder_enable)" = "1" ] && /usr/bin/dns-forwarder.sh restart >/dev/null 2>&1 && loger "Problem decteted, restart dns-forwarder."
+}
+
+[ -f $pidfile ] && kill -9 "$(cat $pidfile)" || echo "$$" > $pidfile
+
 if [ "$(nvram get ss_watchcat)" != "1" ] || [ "$(nvram get ss_router_proxy)" != "1" ] || [ "$(nvram get ss_enable)" != "1" ]; then
-	exit 0
+	go_exit
 fi
 
 tries=0
-while [ $tries -lt 3 ]
-do
-	if /bin/ping -c 1  $net_domain -W 1 >/dev/null 2>&1
-	then
-		detect_shadowsocks
-		exit 0
+while [ $tries -lt 3 ]; do
+	detect_shadowsocks
+	if [ "$?" = "0" ]; then
+		loger "No Problem."
+		go_exit
+	else
+		tries=$((tries+1))
 	fi
-tries=$((tries+1))
 done
-loger "Network Error."
+/bin/ping -c 3 $China_ping_domain -w 5 >/dev/null 2>&1
+[ "$?" = 1 ] && loger "Network Error." && go_exit
+restart_apps
+go_exit
